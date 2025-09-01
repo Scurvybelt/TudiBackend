@@ -204,3 +204,4 @@ def send_password_reset_email(email: str, token: str):
         print(f"❌ Error general enviando email: {str(e)}")
         print(f"TESTING - Reset URL para {email}: {reset_url}")
         return False
+        
