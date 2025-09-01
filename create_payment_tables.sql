@@ -1,6 +1,3 @@
--- Script para agregar tablas de pagos con Stripe
--- Solo pagos únicos (sin suscripciones)
--- Ejecutar después de las tablas existentes
 
 -- Tabla de pagos únicos
 CREATE TABLE IF NOT EXISTS payments (

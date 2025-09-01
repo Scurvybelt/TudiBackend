@@ -7,8 +7,8 @@ load_dotenv()
 
 class StripeConfig:
     """Configuración de Stripe"""
-    STRIPE_PUBLISHABLE_KEY = 'pk_test_51RmmOGI2kaQuXy0UkoZbpvXBVlxrWI0cUVmQM6jmO9WYEx5QM57jdwzDGwlvN8JGLfz0Yb6p2TZgrIQhZOppuBby00Enwema0u'
-    STRIPE_SECRET_KEY = 'sk_test_51RmmOGI2kaQuXy0UEkisepr7h7aatQf8aNtECiy2wPmsdCkxJ27G2e6lmeoV4361RMiI3IEXKT5QausEwyPnHq1j000xD0Hygt'
+    STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
     # STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     
     # URLs del frontend (ajusta según tu aplicación)
