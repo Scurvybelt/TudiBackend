@@ -6,13 +6,16 @@ from database import engine
 from routers import auth, payments
 
 app = FastAPI(title="Tudi Backend API", version="1.0.0")
+
+# Configuración de CORS simplificada
 app.add_middleware(
-	CORSMiddleware,
-	allow_origins=["*"],  # Puedes restringir a tu dominio frontend
-	allow_credentials=True,
-	allow_methods=["*"],
-	allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],  # Permitir todos los orígenes en desarrollo
+    allow_credentials=False,  # Cambiar a False para evitar problemas
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 models.Base.metadata.create_all(bind=engine)
 
 # Incluir routers

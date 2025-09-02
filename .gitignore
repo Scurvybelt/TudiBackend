@@ -13,6 +13,7 @@ venv.bak/
 # Database
 *.db
 *.sqlite3
+database.py
 
 # IDE
 .vscode/
