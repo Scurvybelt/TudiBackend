@@ -23,6 +23,3 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
-
-# Environment variables
-.env
