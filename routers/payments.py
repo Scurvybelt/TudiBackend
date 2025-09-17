@@ -45,7 +45,9 @@ def create_payment_intent(
         user=current_user,
         amount=payment_data.amount,
         currency=payment_data.currency,
-        description=payment_data.description
+        description=payment_data.description,
+        payment_method_types=payment_data.payment_method_types
+        
     )
 
 @router.get("/payment-history", response_model=List[PaymentResponse])

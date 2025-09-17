@@ -47,31 +47,31 @@ class StripeService:
             logger.error(f"Error creating Stripe customer: {e}")
             raise HTTPException(status_code=400, detail=f"Error creando customer: {str(e)}")
 
-    def create_payment_intent(self, db: Session ,user: User, amount: float, 
-                            currency: str = "usd", description: str = None) -> Dict[str, Any]:
-       
+    def create_payment_intent(self, db: Session, user: User, amount: float,
+                              currency: str = "mxn", description: str = None,
+                              payment_method_types: str = "card") -> Dict[str, Any]:
         try:
-            
             # Convertir amount a centavos (Stripe usa centavos)
             amount_cents = int(amount * 100)
-            
             # Crear o obtener customer
             customer_id = self.create_or_get_customer(db, user)
+            # Determinar el tipo de método de pago
+            method_type = payment_method_types[0].lower()
             
-            # Crear Payment Intent
+            # Crear Payment Intent con el método de pago específico
             payment_intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency=currency,
                 customer=customer_id,
                 description=description,
-                automatic_payment_methods={"enabled": True},
+                payment_method_types=[method_type],
                 metadata={
                     "user_id": user.id,
                     "user_email": user.email
                 }
             )
-            
-            #Guardar en la base de datos
+            # print(f"Payment_intent {payment_intent}")
+            # Guardar en la base de datos
             db_payment = Payment(
                 user_id=user.id,
                 stripe_payment_intent_id=payment_intent.id,
@@ -79,19 +79,35 @@ class StripeService:
                 amount=amount,
                 currency=currency,
                 status="pending",
-                description=description
+                description=description,
+                payment_method_types=method_type
             )
             db.add(db_payment)
             db.commit()
             db.refresh(db_payment)
-            
-            return {
+            # Preparar respuesta dinámica
+            response = {
                 "client_secret": payment_intent.client_secret,
                 "payment_intent_id": payment_intent.id,
                 "amount": amount,
-                "currency": currency
+                "currency": currency,
+                "payment_method_types": method_type
             }
-            
+            # Metodos de pago oxxo y bank_transfer
+            if method_type in ["oxxo", "bank_transfer"]:
+                payment_intent = stripe.PaymentIntent.retrieve(payment_intent.id)
+                if method_type == "oxxo" and payment_intent.next_action:
+                    oxxo_details = payment_intent.next_action.get("oxxo_display_details")
+                    if oxxo_details:
+                        response["oxxo_voucher_url"] = oxxo_details.get("hosted_voucher_url")
+                        response["oxxo_barcode"] = oxxo_details.get("number")
+                        response["oxxo_expires_at"] = oxxo_details.get("expires_at")
+                if method_type == "bank_transfer" and payment_intent.next_action:
+                    # print("Entro a bank transfer")
+                    bank_details = payment_intent.next_action.get("display_bank_transfer_instructions")
+                    if bank_details:
+                        response["bank_transfer_details"] = bank_details.get("financial_addresses")
+            return response
         except stripe.error.StripeError as e:
             logger.error(f"Error creating payment intent: {e}")
             raise HTTPException(status_code=400, detail=f"Error creando pago: {str(e)}")

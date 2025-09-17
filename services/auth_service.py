@@ -2,7 +2,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from models import User
 from schemas.user import UserCreate
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 import secrets
 import smtplib
@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 720
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Configuración de email - Hostinger SMTP
@@ -38,6 +38,17 @@ def authenticate_user(db: Session, email: str, password: str):
     if not user or not pwd_context.verify(password, user.password):
         return None
     return user
+
+def verify_access_token(token: str, db: Session):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        return user
+    except JWTError:
+        return None
 
 def create_access_token(user):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

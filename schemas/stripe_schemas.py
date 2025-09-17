@@ -1,18 +1,35 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from typing import List
 
 # Schemas para pagos únicos
 class PaymentIntentCreate(BaseModel):
     amount: float = Field(..., gt=0, description="Monto en la moneda base (ej: 10.50)")
     currency: str = Field(default="usd", description="Código de moneda (usd, eur, etc.)")
     description: Optional[str] = None
+    payment_method_types: List[str] = Field(..., description="Lista de métodos de pago (ej: ['oxxo'], ['card'])")
     
 class PaymentIntentResponse(BaseModel):
     client_secret: str
     payment_intent_id: str
     amount: float
     currency: str
+    payment_method_types: str
+    status: Optional[str] = None
+    description: Optional[str] = None
+    # Campos opcionales para OXXO y transferencia
+    oxxo_voucher_url: Optional[str] = None
+    oxxo_barcode: Optional[str] = None
+    oxxo_expires_at: Optional[int] = None
+    bank_transfer_details: Optional[dict] = None
+
+    # Campos opcionales generales de Stripe
+    next_action: Optional[dict] = None
+    receipt_url: Optional[str] = None
+    created: Optional[int] = None
+    customer: Optional[str] = None
+    metadata: Optional[dict] = None
     
 class PaymentResponse(BaseModel):
     id: int

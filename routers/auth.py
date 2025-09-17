@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from schemas.user import UserCreate, UserLogin, UserOut, PasswordResetRequest, PasswordReset
 from services import auth_service
 from database import get_db
+from fastapi import Request
 
 router = APIRouter(
     prefix="/auth",
@@ -24,7 +25,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     token = auth_service.create_access_token(db_user)
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "user": db_user.email, "name": db_user.name + " " + db_user.last_name}
 
 #Request Password Reset
 @router.post("/request-password-reset")
@@ -63,13 +64,14 @@ def reset_password(reset_data: PasswordReset, db: Session = Depends(get_db)):
     
     return {"message": "Contraseña restablecida exitosamente"}
 
-# Endpoint temporal para probar SMTP (eliminar en producción)
-@router.get("/test-smtp")
-def test_smtp():
-    """
-    Probar conexión SMTP - SOLO PARA DESARROLLO
-    """
-    if auth_service.test_smtp_connection():
-        return {"message": "Conexión SMTP exitosa"}
-    else:
-        return {"message": "Error en conexión SMTP", "status": "error"}
+@router.get("/verify-token")
+def verify_token(request: Request, db: Session = Depends(get_db)):
+    
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("bearer"):
+        raise HTTPException(status_code=401, detail="Token no proporcionado")
+    token = auth_header.split(" ")[1]
+    user = auth_service.verify_access_token(token, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    return {"valid": True, "user": user.email}

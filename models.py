@@ -29,6 +29,7 @@ class Payment(Base):
     currency = Column(String(3), default="usd")  # usd, eur, etc.
     status = Column(String(50))  # pending, succeeded, failed, canceled
     description = Column(String(255), nullable=True)
+    payment_method_types = Column(String(50), nullable=True)  # oxxo, bank_transfer, card, etc.
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
