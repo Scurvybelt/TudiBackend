@@ -156,6 +156,39 @@ def update_product(
     db.refresh(product)
     return product
 
+# Verificar si el usuario tiene un pago activo
+@router.get("/has-paid")
+def has_paid(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Verificar si el usuario tiene al menos un pago exitoso (status = 'succeeded')
+    """
+    try:
+        # Buscar si el usuario tiene al menos un pago con status 'succeeded'
+        payment = db.query(Payment).filter(
+            Payment.user_id == current_user.id,
+            Payment.status == "succeeded"
+        ).first()
+        
+        has_active_payment = payment is not None
+        
+        logger.info(f"User {current_user.email} payment check: {has_active_payment}")
+        
+        return {
+            "has_paid": has_active_payment,
+            "user_id": current_user.id,
+            "email": current_user.email
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking payment status for user {current_user.email}: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Error verificando estado de pago"
+        )
+
 # Webhook de Stripe
 @router.post("/stripe-webhook")
 async def stripe_webhook(
