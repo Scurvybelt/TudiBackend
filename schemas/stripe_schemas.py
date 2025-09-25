@@ -8,7 +8,9 @@ class PaymentIntentCreate(BaseModel):
     amount: float = Field(..., gt=0, description="Monto en la moneda base (ej: 10.50)")
     currency: str = Field(default="usd", description="Código de moneda (usd, eur, etc.)")
     description: Optional[str] = None
-    payment_method_types: List[str] = Field(..., description="Lista de métodos de pago (ej: ['oxxo'], ['card'])")
+    payment_method_types: List[str] = ["card"]
+    return_url: Optional[str] = None  # Para transferencias
+    confirm: Optional[bool] = False   
     
 class PaymentIntentResponse(BaseModel):
     client_secret: str
@@ -23,6 +25,7 @@ class PaymentIntentResponse(BaseModel):
     oxxo_barcode: Optional[str] = None
     oxxo_expires_at: Optional[int] = None
     bank_transfer_details: Optional[dict] = None
+    
 
     # Campos opcionales generales de Stripe
     next_action: Optional[dict] = None
@@ -31,6 +34,8 @@ class PaymentIntentResponse(BaseModel):
     customer: Optional[str] = None
     metadata: Optional[dict] = None
     
+
+
 class PaymentResponse(BaseModel):
     id: int
     stripe_payment_intent_id: str

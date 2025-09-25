@@ -29,6 +29,39 @@ def get_stripe_config():
         publishable_key=stripe_service.get_publishable_key()
     )
 
+
+
+@router.post("/create-payment-intent-transfer")
+def create_payment_intent_transfer(
+    payment_data: PaymentIntentCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Crear un Payment Intent para transferencia bancaria (customer_balance)
+    Se confirma automáticamente en el backend
+    """
+    # Validar que el tipo de pago sea customer_balance
+    if 'customer_balance' not in payment_data.payment_method_types:
+        raise HTTPException(
+            status_code=400, 
+            detail="Este endpoint solo acepta pagos por customer_balance"
+        )
+    
+    try:
+        return stripe_service.create_payment_intent_transfer(
+            db=db,
+            user=current_user,
+            amount=payment_data.amount,
+            currency=payment_data.currency,
+            description=payment_data.description,
+            return_url=getattr(payment_data, 'return_url', None)
+        )
+    except Exception as e:
+        logger.error(f"Error creating transfer payment intent: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # Pagos únicos
 @router.post("/create-payment-intent", response_model=PaymentIntentResponse)
 def create_payment_intent(
@@ -155,6 +188,21 @@ def update_product(
     db.commit()
     db.refresh(product)
     return product
+
+@router.get("/has-paid", response_model=bool)
+def has_user_paid(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Verifica si el usuario ya ha realizado un pago exitoso
+    """
+    paid = db.query(Payment).filter(
+        Payment.user_id == current_user.id,
+        Payment.status == "succeeded"  # Ajusta el valor según tu modelo
+    ).first()
+    return bool(paid)
+
 
 # Webhook de Stripe
 @router.post("/stripe-webhook")

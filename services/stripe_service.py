@@ -47,6 +47,115 @@ class StripeService:
             logger.error(f"Error creating Stripe customer: {e}")
             raise HTTPException(status_code=400, detail=f"Error creando customer: {str(e)}")
 
+
+
+
+    def create_payment_intent_transfer(self, db: Session, user: User, amount: float,
+                                        currency: str, description: str = None,
+                                        return_url: str = None):
+        """
+        Crear Payment Intent para transferencia bancaria
+        """
+        try:
+
+            amount_cents = int(amount * 100)
+            # Crear o obtener customer de Stripe
+            customer_id = self.create_or_get_customer(db, user)
+            
+            # Configurar parámetros específicos para transferencia
+            intent_params = {
+                'amount': amount_cents,
+                'currency': currency,
+                'customer': customer_id,
+                'payment_method_types': ['customer_balance'],
+                'payment_method_data': {
+                    'type': 'customer_balance'
+                },
+                'confirm': True,  # Confirmar inmediatamente
+                'metadata': {
+                    'user_id': str(user.id),
+                    'description': description or 'Pago por transferencia'
+                }
+            }
+            
+            # Agregar return_url si se proporciona
+            if return_url:
+                intent_params['return_url'] = return_url
+                
+            # Agregar customer_details
+            intent_params['payment_method_options'] = {
+                'customer_balance': {
+                    'funding_type': 'bank_transfer',
+                    'bank_transfer': {
+                        'type': 'mx_bank_transfer'  
+                    }
+                }
+            }
+            
+             # Crear Payment Intent
+            payment_intent = stripe.PaymentIntent.create(**intent_params)
+            
+            payment = Payment(
+                user_id=user.id,
+                stripe_payment_intent_id=payment_intent.id,
+                stripe_customer_id=customer_id,
+                amount=amount,
+                currency=currency,
+                status=payment_intent.status,
+                payment_method_types='customer_balance',
+                description=description
+            )
+
+            db.add(payment)
+            db.commit()
+            db.refresh(payment)
+
+            # Preparar respuesta para el frontend
+            response = {
+                'payment_intent_id': payment_intent.id,
+                'client_secret': payment_intent.client_secret,
+                'status': payment_intent.status,
+                'amount': amount,
+                'currency': currency,
+                'payment_method_types': ['customer_balance']
+            }
+
+            # Extraer información de transferencia bancaria si está disponible
+            if payment_intent.next_action and payment_intent.next_action.get('display_bank_transfer_instructions'):
+                bank_instructions = payment_intent.next_action['display_bank_transfer_instructions']
+                
+                response.update({
+                    'bank_transfer_details': {
+                        'reference': bank_instructions.get('reference'),
+                        'amount_remaining': bank_instructions.get('amount_remaining'),
+                        'hosted_instructions_url': bank_instructions.get('hosted_instructions_url'),
+                        'financial_addresses': bank_instructions.get('financial_addresses', [])
+                    },
+                    'next_action_type': payment_intent.next_action.get('type')
+                })
+                
+                # Información específica de SPEI si está disponible
+                financial_addresses = bank_instructions.get('financial_addresses', [])
+                if financial_addresses:
+                    spei_info = financial_addresses[0].get('spei', {})
+                    if spei_info:
+                        response['spei_details'] = {
+                            'clabe': spei_info.get('clabe'),
+                            'bank_name': spei_info.get('bank_name'),
+                            'account_holder_name': spei_info.get('account_holder_name'),
+                            'reference': bank_instructions.get('reference')
+                        }
+
+            return response
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error in transfer payment: {e}")
+            raise HTTPException(status_code=400, detail=f"Error de Stripe: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error creating transfer payment intent: {e}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Error interno del servidor")
+    
     def create_payment_intent(self, db: Session, user: User, amount: float,
                               currency: str = "mxn", description: str = None,
                               payment_method_types: str = "card") -> Dict[str, Any]:
