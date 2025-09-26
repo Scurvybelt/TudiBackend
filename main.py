@@ -19,8 +19,8 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # Incluir routers
-app.include_router(auth.router)
-app.include_router(payments.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(payments.router, prefix="/api")
 
 
 
