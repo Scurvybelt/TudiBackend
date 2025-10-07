@@ -15,7 +15,7 @@ router = APIRouter(
 def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = auth_service.get_user_by_email(db, user.email)
     if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Correo ya registrado")
     return auth_service.create_user(db, user)
 
 #Login
@@ -23,7 +23,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = auth_service.authenticate_user(db, user.email, user.password)
     if not db_user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
     token = auth_service.create_access_token(db_user)
     return {"access_token": token, "token_type": "bearer", "user": db_user.email, "name": db_user.name + " " + db_user.last_name}
 
@@ -41,7 +41,7 @@ def request_password_reset(request: PasswordResetRequest, db: Session = Depends(
     reset_token = auth_service.create_password_reset_token(db, user.email)
     if reset_token:
         auth_service.send_password_reset_email(user.email, reset_token)
-    
+
     return {"message": "Si el email existe, recibirás un enlace para restaurar tu contraseña"}
 
 #Reset Password
@@ -59,7 +59,7 @@ def reset_password(reset_data: PasswordReset, db: Session = Depends(get_db)):
     if not auth_service.reset_user_password(db, reset_data.token, reset_data.new_password):
         raise HTTPException(
             status_code=400, 
-            detail="Error al resetear la contraseña"
+            detail="Error al restablecer la contraseña"
         )
     
     return {"message": "Contraseña restablecida exitosamente"}
