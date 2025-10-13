@@ -237,20 +237,70 @@ class StripeService:
             raise HTTPException(status_code=400, detail="Invalid signature")
 
         # Manejar el evento
-        if event["type"] == "payment_intent.succeeded":
+        if event["type"] == "payment_intent.created":
+            logger.info("Payment Intent created")
+            self._handle_payment_created(db, event["data"]["object"])
+        elif event["type"] == "payment_intent.requires_action":
+            logger.info("Payment Intent requires action (waiting for bank transfer)")
+            self._handle_payment_requires_action(db, event["data"]["object"])
+        elif event["type"] == "payment_intent.succeeded":
+            logger.info("Payment Intent succeeded")
             self._handle_payment_succeeded(db, event["data"]["object"])
         elif event["type"] == "payment_intent.payment_failed":
+            logger.info("Payment Intent failed")
             self._handle_payment_failed(db, event["data"]["object"])
+        elif event["type"] == "customer_balance.deposit":
+            logger.info("Customer balance deposit received")
+            self._handle_customer_balance_deposit(db, event["data"]["object"])
         else:
             logger.info(f"Unhandled event type: {event['type']}")
 
         return {"status": "success"}
+    
+    def _handle_payment_created(self, db: Session, payment_intent: Dict[str, Any]):
+        """Manejar cuando se crea el payment intent"""
+        logger.info(f"Processing payment_intent.created for ID: {payment_intent['id']}")
+        
+        payment = db.query(Payment).filter(
+            Payment.stripe_payment_intent_id == payment_intent["id"]
+        ).first()
+        
+        if payment:
+            payment.status = "created"
+            payment.updated_at = datetime.utcnow()
+            db.commit()
+            logger.info(f"Updated payment {payment.id} to created status")
+
+    def _handle_payment_requires_action(self, db: Session, payment_intent: Dict[str, Any]):
+        """Manejar cuando el payment intent requiere acción (esperando transferencia)"""
+        logger.info(f"Processing payment_intent.requires_action for ID: {payment_intent['id']}")
+        
+        payment = db.query(Payment).filter(
+            Payment.stripe_payment_intent_id == payment_intent["id"]
+        ).first()
+        
+        if payment:
+            payment.status = "requires_action"
+            payment.updated_at = datetime.utcnow()
+            db.commit()
+            logger.info(f"Updated payment {payment.id} to requires_action status")
+
+    def _handle_customer_balance_deposit(self, db: Session, deposit: Dict[str, Any]):
+        """Manejar cuando se recibe un depósito en customer balance"""
+        logger.info(f"Processing customer_balance.deposit for amount: {deposit.get('amount')}")
+        
+        # Este evento indica que se recibió dinero, pero el payment_intent.succeeded vendrá después
+        customer_id = deposit.get("customer")
+        if customer_id:
+            logger.info(f"Deposit received for customer: {customer_id}")
+
 
     def _handle_payment_succeeded(self, db: Session, payment_intent: Dict[str, Any]):
         """Manejar pago exitoso"""
         payment = db.query(Payment).filter(
             Payment.stripe_payment_intent_id == payment_intent["id"]
         ).first()
+        print(f"Payment found: {payment}")
         
         if payment:
             payment.status = "succeeded"

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import models
 from database import engine
-from routers import auth, payments
+from routers import auth, payments, course
 
 app = FastAPI(title="Tudi Backend API", version="1.0.0")
 
@@ -21,6 +21,7 @@ models.Base.metadata.create_all(bind=engine)
 # Incluir routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
+app.include_router(course.router, prefix="/api")
 
 
 
