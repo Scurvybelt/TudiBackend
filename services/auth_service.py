@@ -31,6 +31,14 @@ def create_user(db: Session, user: UserCreate):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    
+    # Inicializar progreso del curso para el nuevo usuario
+    from services.course_service import initialize_user_course_progress
+    try:
+        initialize_user_course_progress(db, db_user.id)
+    except Exception as e:
+        print(f"Error inicializando progreso del curso: {e}")
+    
     return db_user
 
 def authenticate_user(db: Session, email: str, password: str):

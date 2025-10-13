@@ -1,13 +1,19 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, Text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, Text, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
+import enum
+
+class CoursePhaseStatus(enum.Enum):
+    LOCKED = "locked"
+    AVAILABLE = "available"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    # username = Column(String(50), unique=True, index=True)
     name = Column(String(100))
     last_name = Column(String(100))
     email = Column(String(100), unique=True, index=True)
@@ -17,6 +23,9 @@ class User(Base):
     
     # Relación con pagos
     payments = relationship("Payment", back_populates="user")
+    # Relación con progreso del curso
+    course_progress = relationship("UserCourseProgress", back_populates="user")
+    
 
 class Payment(Base):
     __tablename__ = "payments"
@@ -51,3 +60,39 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+
+class CoursePhase(Base):
+    __tablename__ = "course_phases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255))
+    description = Column(Text, nullable=True)
+    phase_order = Column(Integer, unique=True)  # Orden secuencial de las fases (1, 2, 3, etc.)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relación con progreso del usuario
+    user_progress = relationship("UserCourseProgress", back_populates="phase")
+
+class UserCourseProgress(Base):
+    __tablename__ = "user_course_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    phase_id = Column(Integer, ForeignKey("course_phases.id"))
+    status = Column(Enum(CoursePhaseStatus), default=CoursePhaseStatus.LOCKED)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    progress_percentage = Column(Float, default=0.0)  # 0-100 para progreso dentro de la fase
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    user = relationship("User", back_populates="course_progress")
+    phase = relationship("CoursePhase", back_populates="user_progress")
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        {"extend_existing": True}
+    )
